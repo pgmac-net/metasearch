@@ -1,0 +1,13 @@
+name: Build a bill of materials ... and scan it
+
+on:
+  push:
+    branches: ["master"]
+
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  sbom:
+    uses: pg-actions/.github/workflows/sbom.yml@main
