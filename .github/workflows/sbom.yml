@@ -9,10 +9,7 @@ on:
 jobs:
   sbom:
     uses: pgmac-net/pg-actions/.github/workflows/sbom.yml@main
-    with:
-      DT_APIKEY: ${{ secrets.DT_APIKEY }}
-      DT_PROTOCOL: ${{ secrets.DT_PROTOCOL }}
-      DT_HOST: ${{ secrets.DT_HOST }}
+    secrets: inherit
     permissions:
       attestations: write
       contents: write
