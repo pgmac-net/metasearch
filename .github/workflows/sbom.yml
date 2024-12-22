@@ -10,4 +10,4 @@ permissions: read-all
 
 jobs:
   sbom:
-    uses: pg-actions/.github/workflows/sbom.yml@main
+    uses: pgmac-net/pg-actions/.github/workflows/sbom.yml@main
