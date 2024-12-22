@@ -11,3 +11,8 @@ permissions: read-all
 jobs:
   sbom:
     uses: pgmac-net/pg-actions/.github/workflows/sbom.yml@main
+    permissions:
+      attestations: write
+      contents: write
+      security-events: write
+      id-token: write
