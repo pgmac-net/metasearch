@@ -10,8 +10,15 @@ interface Repo {
   name: string;
 }
 
+interface Gist {
+  description: string | null;
+  id: string;
+  updated_at: string;
+  html_url: string;
+}
+
 let client: AxiosInstance | undefined;
-let getRepos: (() => Promise<Map<string, Set<Repo>>>) | undefined;
+let getReposAndGists: (() => Promise<Map<string, { repos: Set<Repo>, gists: Set<Gist> }>>) | undefined;
 let users: string[] | undefined;
 
 const engine: Engine = {
@@ -31,12 +38,15 @@ const engine: Engine = {
     });
     client = axiosClient;
 
-    getRepos = rateLimit(async () => {
-      const reposByUser = new Map<string, Set<Repo>>();
+    getReposAndGists = rateLimit(async () => {
+      const dataByUser = new Map<string, { repos: Set<Repo>, gists: Set<Gist> }>();
 
       for (const user of usernames) {
         let cursor: string | undefined;
         const repos = new Set<Repo>();
+        const gists = new Set<Gist>();
+
+        // Fetch repositories
         while (true) {
           const response = await axiosClient.post(
             "/graphql",
@@ -72,16 +82,27 @@ const engine: Engine = {
             break;
           }
         }
-        reposByUser.set(user, repos);
+
+        // Fetch gists
+        try {
+          const response = await axiosClient.get(`/users/${user}/gists`);
+          const gistsData: Gist[] = response.data;
+
+          gistsData.forEach((gist) => gists.add(gist));
+        } catch (error) {
+          console.warn(`Error fetching gists for user "${user}": ${error}`);
+        }
+
+        dataByUser.set(user, { repos, gists });
       }
 
-      return reposByUser;
+      return dataByUser;
     }, 1);
     users = usernames;
   },
   name: "GitHub Users",
   search: async (q) => {
-    if (!(client && getRepos && users)) {
+    if (!(client && getReposAndGists && users)) {
       throw Error("Engine not initialized");
     }
 
@@ -89,17 +110,24 @@ const engine: Engine = {
 
     for (const user of users) {
       // Search repo names and descriptions
-      if (getRepos) {
-        const repos = await getRepos();
-        const userRepos = repos.get(user) || new Set();
+      if (getReposAndGists) {
+        const data = await getReposAndGists();
+        const userData = data.get(user);
 
-        if (!userRepos.size) {
-          console.warn(`No repositories found for user: ${user}`);
+        if (!userData) {
+          console.warn(`No data found for user: ${user}`);
+          continue;
+        }
+
+        const { repos, gists } = userData;
+
+        if (!repos.size && !gists.size) {
+          console.warn(`No repositories or gists found for user: ${user}`);
           continue;
         }
 
         results.push(
-          ...Array.from(userRepos)
+          ...Array.from(repos)
             .filter(
               (r) =>
                 !r.isArchived &&
@@ -112,6 +140,17 @@ const engine: Engine = {
                 r.description?.replace(/ *:[a-z-]+: */g, "") || undefined,
               title: `Repo ${user}/${r.name}`,
               url: `https://github.com/${user}/${r.name}`,
+            }))
+        );
+
+        results.push(
+          ...Array.from(gists)
+            .filter((g) => g.description && fuzzyIncludes(g.description, q))
+            .sort((a, b) => (a.updated_at > b.updated_at ? 1 : -1))
+            .map((g) => ({
+              snippet: g.description || undefined,
+              title: `Gist ${user}/${g.id}`,
+              url: g.html_url,
             }))
         );
       }
