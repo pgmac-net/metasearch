@@ -93,6 +93,18 @@ engines:
     # GitHub personal access token
     token: abcdef0123456789abcdef0123456789abcdef01
 
+  # GitHub user names and descriptions (for GitHub code, use Hound engine)
+  github-userse:
+    # GitHub organization
+    users:
+      - example
+      - example2
+    # GitHub API origin (optional, defaults to https://api.github.com)
+    origin: https://api.github.com
+    # GitHub personal access token
+    token: abcdef0123456789abcdef0123456789abcdef01
+
+
   # GitLab Merge Requests
   gitlab:
     # GitLab API origin (optional, defaults to https://gitlab.com)
