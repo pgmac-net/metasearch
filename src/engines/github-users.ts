@@ -18,7 +18,7 @@ interface Gist {
 }
 
 let client: AxiosInstance | undefined;
-let getReposAndGists: (() => Promise<Map<string, { repos: Set<Repo>, gists: Set<Gist> }>>) | undefined;
+let getReposAndGists: (() => Promise<Map<string, { repos: Set<Repo>, gists: Set<Gist>, stars: Set<Repo> }>>) | undefined;
 let users: string[] | undefined;
 
 const engine: Engine = {
@@ -39,12 +39,13 @@ const engine: Engine = {
     client = axiosClient;
 
     getReposAndGists = rateLimit(async () => {
-      const dataByUser = new Map<string, { repos: Set<Repo>, gists: Set<Gist> }>();
+      const dataByUser = new Map<string, { repos: Set<Repo>, gists: Set<Gist>, stars: Set<Repo> }>();
 
       for (const user of usernames) {
         let cursor: string | undefined;
         const repos = new Set<Repo>();
         const gists = new Set<Gist>();
+        const stars = new Set<Repo>();
 
         // Fetch repositories
         while (true) {
@@ -93,7 +94,17 @@ const engine: Engine = {
           console.warn(`Error fetching gists for user "${user}": ${error}`);
         }
 
-        dataByUser.set(user, { repos, gists });
+        // Fetch starred repositories
+        try {
+          const response = await axiosClient.get(`/users/${user}/starred`);
+          const starsData: Repo[] = response.data;
+
+          starsData.forEach((star) => stars.add(star));
+        } catch (error) {
+          console.warn(`Error fetching stars for user "${user}": ${error}`);
+        }
+
+        dataByUser.set(user, { repos, gists, stars });
       }
 
       return dataByUser;
@@ -119,10 +130,10 @@ const engine: Engine = {
           continue;
         }
 
-        const { repos, gists } = userData;
+        const { repos, gists, stars } = userData;
 
-        if (!repos.size && !gists.size) {
-          console.warn(`No repositories or gists found for user: ${user}`);
+        if (!repos.size && !gists.size && !stars.size) {
+          console.warn(`No repositories, gists, or stars found for user: ${user}`);
           continue;
         }
 
@@ -151,6 +162,23 @@ const engine: Engine = {
               snippet: g.description || undefined,
               title: `Gist ${user}/${g.id}`,
               url: g.html_url,
+            }))
+        );
+
+        results.push(
+          ...Array.from(stars)
+            .filter(
+              (r) =>
+                !r.isArchived &&
+                !r.isFork &&
+                [r.description, r.name].some((s) => s && fuzzyIncludes(s, q))
+            )
+            .sort((a, b) => (a.name > b.name ? 1 : -1))
+            .map((r) => ({
+              snippet:
+                r.description?.replace(/ *:[a-z-]+: */g, "") || undefined,
+              title: `Starred Repo ${user}/${r.name}`,
+              url: `https://github.com/${user}/${r.name}`,
             }))
         );
       }
