@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from "axios";
-import * as marked from "marked";
+import marked from "marked";
 
 import { escapeQuotes, fuzzyIncludes, getUnixTime, rateLimit } from "../util";
 
@@ -82,14 +82,15 @@ const engine: Engine = {
 
     const results: Result[] = [];
 
-    for (const org of orgs) {
-      // Search repo names and descriptions
-      if (getRepos) {
-        const repos = await getRepos();
-        const orgRepos = repos.get(org) || new Set();
+    const repos = await getRepos();
 
-        results.push(
-          ...Array.from(orgRepos)
+    for (const org of orgs) {
+      const orgRepos = repos.get(org) || new Set();
+
+      const [repoResults, issueResults] = await Promise.all([
+        // Search repo names and descriptions
+        (async () =>
+          Array.from(orgRepos)
             .filter(
               (r) =>
                 !r.isArchived &&
@@ -102,52 +103,53 @@ const engine: Engine = {
                 r.description?.replace(/ *:[a-z-]+: */g, "") || undefined,
               title: `Repo ${org}/${r.name}`,
               url: `https://github.com/${org}/${r.name}`,
-            }))
-        );
-      }
-
-      // Search issues and pull requests
-      if (client) {
-        try {
-          const data: {
-            items: {
-              body: null | string;
-              html_url: string;
-              number: number;
-              pull_request?: object;
-              title: string;
-              updated_at: string;
-              user: { login: string };
-            }[];
-          } = (
-            await client.get("/search/issues", {
-              params: {
-                per_page: 100,
-                q: /\b(is|author|org):\w/.test(q)
-                  ? /\borg:\w/.test(q)
-                    ? q
-                    : `org:${org} ${q}`
-                  : `org:${org} \"${escapeQuotes(q)}\"`,
-              },
-            })
-          ).data;
-
-          results.push(
-            ...data.items.map((item) => ({
+            })))(),
+        // Search issues and pull requests
+        (async () => {
+          try {
+            // TODO: Paginate
+            // https://developer.github.com/v3/search/#search-issues-and-pull-requests
+            const data: {
+              items: {
+                body: null | string;
+                html_url: string;
+                number: number;
+                pull_request?: object;
+                title: string;
+                /** e.g. "2020-06-29T21:46:58Z" */
+                updated_at: string;
+                user: { login: string };
+              }[];
+            } = (
+              await client.get("/search/issues", {
+                params: {
+                  per_page: 100,
+                  q: /\b(is|author|org):\w/.test(q)
+                    ? /\borg:\w/.test(q)
+                      ? q
+                      : `org:${org} ${q}`
+                    : `org:${org} "${escapeQuotes(q)}"`,
+                },
+              })
+            ).data;
+            return data.items.map((item) => ({
               modified: getUnixTime(item.updated_at),
               snippet: item.body
-                ? `<blockquote>${marked(item.body)}</blockquote>`
+                ? `<blockquote>${marked.parse(item.body)}</blockquote>`
                 : undefined,
               title: `${item.pull_request ? "PR" : "Issue"} in ${
                 item.html_url.match(/github\.com\/([^\/]+\/[^\/]+)/)?.[1]
               }: ${item.title}`,
               url: item.html_url,
-            }))
-          );
-        } catch {
-          // Ignore errors for now
-        }
-      }
+            }));
+          } catch {
+            // Ignore errors for now
+            return [];
+          }
+        })(),
+      ]);
+
+      results.push(...repoResults, ...issueResults);
     }
 
     return results;
