@@ -12,6 +12,7 @@ import guru from "./guru";
 import hound from "./hound";
 import jenkins from "./jenkins";
 import jira from "./jira";
+import linear from "./linear";
 import lingo from "./lingo";
 import mattermost from "./mattermost";
 import notion from "./notion";
@@ -41,6 +42,7 @@ const engines: Engine[] = [
   hound,
   jenkins,
   jira,
+  linear,
   lingo,
   mattermost,
   notion,
