@@ -149,6 +149,11 @@ engines:
     # Jenkins user who owns the API token (optional, requires token)
     user: username
 
+  # Linear issues and tickets
+  linear:
+    # Linear personal API key (Settings > API > Personal API keys)
+    token: Ex4mp1eEx4mp1eEx4mp1eEx4mp1eEx4mp1eEx4mp1e
+
   # Jira issue titles and descriptions
   jira:
     # Jira server URL origin

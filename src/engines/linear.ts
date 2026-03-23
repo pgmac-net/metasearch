@@ -1,0 +1,68 @@
+import axios, { AxiosInstance } from "axios";
+
+import { getUnixTime } from "../util";
+
+interface Issue {
+  identifier: string;
+  title: string;
+  description: string | null;
+  url: string;
+  updatedAt: string;
+  state: { name: string } | null;
+  team: { name: string } | null;
+}
+
+let client: AxiosInstance | undefined;
+
+const engine: Engine = {
+  id: "linear",
+  init: ({ token }: { token: string }) => {
+    client = axios.create({
+      baseURL: "https://api.linear.app",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+  },
+  isSnippetLarge: false,
+  name: "Linear",
+  search: async q => {
+    if (!client) {
+      throw Error("Engine not initialized");
+    }
+
+    try {
+      const response = await client.post("/graphql", {
+        query: `query Search($term: String!) {
+          issueSearch(term: $term, first: 50) {
+            nodes {
+              identifier
+              title
+              description
+              url
+              updatedAt
+              state { name }
+              team { name }
+            }
+          }
+        }`,
+        variables: { term: q },
+      });
+
+      const nodes: Issue[] = response.data?.data?.issueSearch?.nodes ?? [];
+
+      return nodes.map(issue => ({
+        modified: getUnixTime(issue.updatedAt),
+        snippet: issue.description ?? undefined,
+        title: `[${issue.team?.name ?? "Linear"}] ${issue.identifier}: ${issue.title}`,
+        url: issue.url,
+      }));
+    } catch (ex) {
+      console.error(`Linear search error: ${ex}`);
+      return [];
+    }
+  },
+};
+
+export default engine;
