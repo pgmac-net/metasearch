@@ -42,14 +42,14 @@ jobs:
             VERSION="${SHORT_SHA}"
           fi
           echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "full-ref=macro.int.pgmac.net:5000/metasearch:${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "full-ref=macro.int.pgmac.net:5000/pg-metasearch:${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build Docker image
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          docker build --network=host \
-            -t "macro.int.pgmac.net:5000/metasearch:${TAG}" \
+          docker build \
+            -t "macro.int.pgmac.net:5000/pg-metasearch:${TAG}" \
             .
 
       - name: Tag as latest
@@ -58,8 +58,8 @@ jobs:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           docker tag \
-            "macro.int.pgmac.net:5000/metasearch:${TAG}" \
-            "macro.int.pgmac.net:5000/metasearch:latest"
+            "macro.int.pgmac.net:5000/pg-metasearch:${TAG}" \
+            "macro.int.pgmac.net:5000/pg-metasearch:latest"
 
       - name: Push Docker image
         id: push
@@ -67,11 +67,11 @@ jobs:
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          docker push "macro.int.pgmac.net:5000/metasearch:${TAG}"
-          docker push "macro.int.pgmac.net:5000/metasearch:latest"
+          docker push "macro.int.pgmac.net:5000/pg-metasearch:${TAG}"
+          docker push "macro.int.pgmac.net:5000/pg-metasearch:latest"
           DIGEST=$(docker inspect \
             --format='{{index .RepoDigests 0}}' \
-            "macro.int.pgmac.net:5000/metasearch:${TAG}" \
+            "macro.int.pgmac.net:5000/pg-metasearch:${TAG}" \
             | grep -oP 'sha256:[a-f0-9]+')
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
@@ -80,7 +80,7 @@ jobs:
         if: github.event_name == 'push'
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: macro.int.pgmac.net:5000/metasearch
+          subject-name: macro.int.pgmac.net:5000/pg-metasearch
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: false
 
@@ -103,7 +103,7 @@ jobs:
             echo ""
             echo "| Field | Value |"
             echo "|---|---|"
-            echo "| Image | \`macro.int.pgmac.net:5000/metasearch:${TAG}\` |"
+            echo "| Image | \`macro.int.pgmac.net:5000/pg-metasearch:${TAG}\` |"
             if [ "${EVENT_NAME}" = "push" ]; then
               echo "| Digest | \`${DIGEST}\` |"
               echo "| Pushed | Yes |"
