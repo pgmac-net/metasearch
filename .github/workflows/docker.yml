@@ -1,0 +1,223 @@
+name: Docker Build, Push & SBoM
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+  attestations: write
+  actions: read
+
+jobs:
+  build:
+    runs-on: self-hosted
+    timeout-minutes: 30
+    outputs:
+      image-tag: ${{ steps.tag.outputs.tag }}
+      image-digest: ${{ steps.push.outputs.digest }}
+      full-image-ref: ${{ steps.tag.outputs.full-ref }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          if [ "${REF_TYPE}" = "tag" ]; then
+            VERSION="${REF_NAME#v}"
+          elif [ "${EVENT_NAME}" = "pull_request" ]; then
+            VERSION="pr-${PR_NUMBER}-${SHORT_SHA}"
+          else
+            VERSION="${SHORT_SHA}"
+          fi
+          echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "full-ref=macro.int.pgmac.net:5000/metasearch:${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker build --network=host \
+            -t "macro.int.pgmac.net:5000/metasearch:${TAG}" \
+            .
+
+      - name: Tag as latest
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker tag \
+            "macro.int.pgmac.net:5000/metasearch:${TAG}" \
+            "macro.int.pgmac.net:5000/metasearch:latest"
+
+      - name: Push Docker image
+        id: push
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker push "macro.int.pgmac.net:5000/metasearch:${TAG}"
+          docker push "macro.int.pgmac.net:5000/metasearch:latest"
+          DIGEST=$(docker inspect \
+            --format='{{index .RepoDigests 0}}' \
+            "macro.int.pgmac.net:5000/metasearch:${TAG}" \
+            | grep -oP 'sha256:[a-f0-9]+')
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest Docker image
+        id: attest-image
+        if: github.event_name == 'push'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: macro.int.pgmac.net:5000/metasearch
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: false
+
+      - name: Upload image attestation bundle
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-attestation.json
+          path: ${{ steps.attest-image.outputs.bundle-path }}
+
+      - name: Write workflow summary
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          {
+            echo "## Docker Build Summary"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Image | \`macro.int.pgmac.net:5000/metasearch:${TAG}\` |"
+            if [ "${EVENT_NAME}" = "push" ]; then
+              echo "| Digest | \`${DIGEST}\` |"
+              echo "| Pushed | Yes |"
+            else
+              echo "| Pushed | No (PR build only) |"
+            fi
+            echo "| Build status | Success |"
+            echo "| Commit | \`${COMMIT_SHA}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post or update PR comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+
+          {
+            echo "<!-- docker-build-summary -->"
+            echo "## Docker Build"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Status | Built (not pushed -- PR build only) |"
+            echo "| Tag | \`${TAG}\` |"
+            echo "| Commit | \`${SHORT_SHA}\` |"
+            echo ""
+            echo "> Image will be pushed to \`macro.int.pgmac.net:5000\` on merge to master."
+            echo "> This comment is updated on each commit."
+          } > /tmp/pr-comment.md
+
+          COMMENT_ID=$(gh pr view "${PR_NUMBER}" \
+            --json comments \
+            --jq '.comments[] | select(.body | contains("docker-build-summary")) | .databaseId' \
+            2>/dev/null | head -1 || true)
+
+          if [ -n "${COMMENT_ID}" ]; then
+            BODY=$(cat /tmp/pr-comment.md)
+            gh api "repos/${REPOSITORY}/issues/comments/${COMMENT_ID}" \
+              -X PATCH -f body="${BODY}"
+          else
+            gh pr comment "${PR_NUMBER}" --body-file /tmp/pr-comment.md
+          fi
+
+  sbom:
+    runs-on: self-hosted
+    needs: [build]
+    if: github.event_name == 'push'
+    timeout-minutes: 15
+    permissions:
+      id-token: write
+      attestations: write
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate CycloneDX SBoM from Docker image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ needs.build.outputs.full-image-ref }}
+          format: cyclonedx-json
+          output-file: docker-sbom.json
+          artifact-name: docker-sbom.json
+          upload-artifact: true
+
+      - name: Compute SHA256 digest of SBoM
+        id: sha256
+        run: |
+          echo "digest=sha256:$(sha256sum docker-sbom.json | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Attest SBoM
+        id: attest-sbom
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: docker-sbom.json
+          subject-digest: ${{ steps.sha256.outputs.digest }}
+          push-to-registry: false
+
+      - name: Upload SBoM attestation bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-sbom-attestation.json
+          path: ${{ steps.attest-sbom.outputs.bundle-path }}
+
+      - name: Upload SBoM to Dependency Track
+        uses: DependencyTrack/gh-upload-sbom@v3
+        with:
+          serverhostname: dtrack.int.pgmac.net
+          apikey: ${{ secrets.DT_APIKEY }}
+          projectname: ${{ github.repository }}
+          projectversion: ${{ needs.build.outputs.image-tag }}
+          projecttags: ${{ github.repository }}, docker, ${{ github.ref }}
+          bomfilename: docker-sbom.json
+          autocreate: true
+
+      - name: Append SBoM summary to workflow summary
+        env:
+          FULL_IMAGE_REF: ${{ needs.build.outputs.full-image-ref }}
+        run: |
+          COMPONENT_COUNT=$(jq '.components | length' docker-sbom.json 2>/dev/null || echo "unknown")
+          {
+            echo ""
+            echo "## SBoM Summary"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Format | CycloneDX JSON |"
+            echo "| Components | \`${COMPONENT_COUNT}\` |"
+            echo "| Image | \`${FULL_IMAGE_REF}\` |"
+            echo "| Dependency Track | https://dtrack.int.pgmac.net |"
+            echo "| Attestation | Attested |"
+          } >> "$GITHUB_STEP_SUMMARY"

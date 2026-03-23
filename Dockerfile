@@ -12,6 +12,6 @@ COPY . .
 
 RUN make build
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 ENTRYPOINT ["node", "src/index.js"]
