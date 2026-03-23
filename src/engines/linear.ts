@@ -50,6 +50,10 @@ const engine: Engine = {
         variables: { query: q },
       });
 
+      if (response.data?.errors) {
+        console.error(`Linear GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
       const nodes: Issue[] = response.data?.data?.issueSearch?.nodes ?? [];
 
       return nodes.map(issue => ({
