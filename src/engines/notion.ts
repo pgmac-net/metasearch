@@ -36,7 +36,7 @@ const engine: Engine = {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        "Notion-Version": "2021-05-13",
+        "Notion-Version": "2022-06-28",
       },
     });
   },
