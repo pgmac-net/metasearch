@@ -68,12 +68,16 @@ const SORT_MODES: Record<
 
 const Settings = ({
   enableSorting,
+  newTab,
   onSort,
+  onToggleNewTab,
   onToggleTheme,
   sortMode,
 }: {
   enableSorting: boolean;
+  newTab: boolean;
   onSort: (sort: SortMode) => void;
+  onToggleNewTab: () => void;
   onToggleTheme: () => void;
   sortMode: SortMode;
 }) => (
@@ -89,6 +93,9 @@ const Settings = ({
           ),
         )
       : null}
+    <a href="javascript:;" onClick={onToggleNewTab} title="Toggle new tab">
+      <span>{newTab ? "New tab: on" : "New tab: off"}</span>
+    </a>
     <a href="javascript:;" onClick={onToggleTheme} title="Toggle dark theme">
       <img src="/theme.png" />
     </a>
@@ -168,11 +175,13 @@ const formatDate = (() => {
 
 const Results = ({
   hiddenEngines,
+  newTab,
   onToggle,
   resultGroups,
   sortMode,
 }: {
   hiddenEngines: string[];
+  newTab: boolean;
   onToggle: (engineId: string) => void;
   resultGroups: ResultGroup[];
   sortMode: SortMode;
@@ -216,6 +225,8 @@ const Results = ({
                         className="title"
                         dangerouslySetInnerHTML={{ __html: result.title }}
                         href={result.url}
+                        rel={newTab ? "noreferrer" : undefined}
+                        target={newTab ? "_blank" : undefined}
                       />
                       {result.modified ? (
                         <span
@@ -320,6 +331,7 @@ const STORAGE_MANAGER = (() => {
   type Data = Partial<{
     dark: boolean;
     hiddenEngines: string[];
+    newTab: boolean;
     sortMode: SortMode;
   }>;
   let cachedData: Data;
@@ -392,7 +404,11 @@ const App = () => {
       />
       <Settings
         enableSorting={resultGroups.length > 0}
+        newTab={localData.newTab || false}
         onSort={sortMode => setLocalData({ ...localData, sortMode })}
+        onToggleNewTab={() =>
+          setLocalData({ ...localData, newTab: !localData.newTab })
+        }
         onToggleTheme={() =>
           setLocalData({ ...localData, dark: !localData.dark })
         }
@@ -404,6 +420,7 @@ const App = () => {
       />
       <Results
         hiddenEngines={localData.hiddenEngines || []}
+        newTab={localData.newTab || false}
         onToggle={engineId => {
           const hiddenEngines = localData.hiddenEngines || [];
           setLocalData({
