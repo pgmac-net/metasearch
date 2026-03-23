@@ -34,8 +34,8 @@ const engine: Engine = {
 
     try {
       const response = await client.post("/graphql", {
-        query: `query Search($term: String!) {
-          issueSearch(term: $term, first: 50) {
+        query: `query Search($query: String!) {
+          issueSearch(query: $query, first: 50) {
             nodes {
               identifier
               title
@@ -47,7 +47,7 @@ const engine: Engine = {
             }
           }
         }`,
-        variables: { term: q },
+        variables: { query: q },
       });
 
       const nodes: Issue[] = response.data?.data?.issueSearch?.nodes ?? [];
