@@ -142,15 +142,10 @@ jobs:
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" \
-            | python3 -c "
-import sys, json
-for c in json.load(sys.stdin):
-    if 'docker-build-summary' in c.get('body', ''):
-        print(c['id'])
-        break
-" 2>/dev/null || true)
+            | python3 -c 'import sys,json; cs=[str(c["id"]) for c in json.load(sys.stdin) if "docker-build-summary" in c.get("body","")]; print(cs[0] if cs else "")' \
+            2>/dev/null || true)
 
-          BODY=$(python3 -c "import sys,json; print(json.dumps(sys.stdin.read()))" < /tmp/pr-comment.md)
+          BODY=$(python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))' < /tmp/pr-comment.md)
 
           if [ -n "${COMMENT_ID}" ]; then
             curl -s -X PATCH \
