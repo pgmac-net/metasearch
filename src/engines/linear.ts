@@ -20,7 +20,7 @@ const engine: Engine = {
     client = axios.create({
       baseURL: "https://api.linear.app",
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: token,
         "Content-Type": "application/json",
       },
     });
