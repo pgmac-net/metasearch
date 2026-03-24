@@ -62,8 +62,9 @@ const engine: Engine = {
         title: `[${issue.team?.name ?? "Linear"}] ${issue.identifier}: ${issue.title}`,
         url: issue.url,
       }));
-    } catch (ex) {
-      console.error(`Linear search error: ${ex}`);
+    } catch (ex: any) {
+      const body = ex?.response?.data ? JSON.stringify(ex.response.data) : "(no response body)";
+      console.error(`Linear search error: ${ex} — response body: ${body}`);
       return [];
     }
   },
