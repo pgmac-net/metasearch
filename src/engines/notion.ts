@@ -28,7 +28,7 @@ interface Page {
 
 const engine: Engine = {
   id: "notion",
-  init: ({ token, workspace }: { token: string; workspace: string }) => {
+  init: ({ token, workspace }: { token: string; workspace?: string }) => {
     token = token;
     notionWorkspace = workspace;
     axiosClient = axios.create({
@@ -66,7 +66,7 @@ const engine: Engine = {
           return {
             modified: getUnixTime(result.last_edited_time),
             title: title.plain_text,
-            url: `notion://notion.so/${notionWorkspace}/${formatTitle(
+            url: `https://notion.so/${notionWorkspace ? `${notionWorkspace}/` : ""}${formatTitle(
               title.plain_text,
             )}-${formatId(result.id)}`,
           };
