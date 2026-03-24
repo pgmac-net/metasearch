@@ -34,8 +34,16 @@ const engine: Engine = {
 
     try {
       const response = await client.post("/graphql", {
-        query: `query Search($query: String!) {
-          issueSearch(query: $query, first: 50) {
+        query: `query Search($term: String!) {
+          issues(
+            first: 50
+            filter: {
+              or: [
+                { title: { containsIgnoreCase: $term } }
+                { description: { containsIgnoreCase: $term } }
+              ]
+            }
+          ) {
             nodes {
               identifier
               title
@@ -47,14 +55,14 @@ const engine: Engine = {
             }
           }
         }`,
-        variables: { query: q },
+        variables: { term: q },
       });
 
       if (response.data?.errors) {
         console.error(`Linear GraphQL errors: ${JSON.stringify(response.data.errors)}`);
       }
 
-      const nodes: Issue[] = response.data?.data?.issueSearch?.nodes ?? [];
+      const nodes: Issue[] = response.data?.data?.issues?.nodes ?? [];
 
       return nodes.map(issue => ({
         modified: getUnixTime(issue.updatedAt),
