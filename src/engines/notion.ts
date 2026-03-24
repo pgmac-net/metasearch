@@ -3,7 +3,7 @@ import axios, { AxiosInstance } from "axios";
 import { getUnixTime } from "../util";
 
 let axiosClient: AxiosInstance | undefined;
-let notionWorkspace: string;
+let notionWorkspace: string | undefined;
 
 type RichText = {
   plain_text: string;
