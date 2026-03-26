@@ -1,7 +1,15 @@
 import axios, { AxiosInstance } from "axios";
-import marked from "marked";
 
 import { getUnixTime, stripStopWords } from "../util";
+
+let markedParse: ((src: string) => string) | undefined;
+async function getMarkedParse(): Promise<(src: string) => string> {
+  if (!markedParse) {
+    const { marked } = await import("marked");
+    markedParse = (src: string) => marked.parse(src) as string;
+  }
+  return markedParse;
+}
 
 let client: AxiosInstance | undefined;
 
@@ -63,6 +71,7 @@ const engine: Engine = {
     );
 
     const exactMatchSlugs = new Set(exactMatches.map(m => m.slug));
+    const parse = await getMarkedParse();
     return [
       ...exactMatches,
       ...lenientMatches.filter(m => !exactMatchSlugs.has(m.slug)),
@@ -71,7 +80,7 @@ const engine: Engine = {
       snippet: c.content.includes("ghq-card")
         ? // Strip Guru's HTML formatting attributes
           c.content.replace(/ (class|data-[\w-]+|style|width)=".*?"/g, "")
-        : (marked.parse(c.content) as string),
+        : parse(c.content),
       title: c.collection
         ? `${c.collection.name} > ${c.preferredPhrase}`
         : c.preferredPhrase,
