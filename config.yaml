@@ -173,6 +173,19 @@ engines:
       - https://www.lingoapp.com/1234/k/Icons-RWEr24?kit_token=Ex4mp1eEx4mp1eEx4mp1eEx4mp1eEx4mp1eEx4mp1eE
       - https://www.lingoapp.com/1234/k/Illustrations-Ex4mp1
 
+  # Nagios Core hosts and services (requires Nagios Core 4.x)
+  nagios:
+    # Nagios server hostname
+    host: nagios.example.com
+    # Nagios web UI username
+    username: ${NAGIOS_USER}
+    # Nagios web UI password
+    password: ${NAGIOS_PASSWORD}
+    # Base path of Nagios web UI (optional, defaults to /nagios)
+    # path: /nagios
+    # Base path of PNP4Nagios for graph links (optional, omit to disable graph results)
+    # graphsPath: /pnp4nagios
+
   # Mattermost posts
   mattermost:
     origin: https://my-mattermost-server.com
