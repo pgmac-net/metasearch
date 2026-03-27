@@ -31,15 +31,17 @@ const engine: Engine = {
     username,
     password,
     path = "/nagios",
+    protocol = "https",
     graphsPath: gp,
   }: {
     host: string;
     username: string;
     password: string;
     path?: string;
+    protocol?: string;
     graphsPath?: string;
   }) => {
-    baseUrl = `https://${host}`;
+    baseUrl = `${protocol}://${host}`;
     graphsPath = gp;
 
     const client = axios.create({
@@ -51,14 +53,17 @@ const engine: Engine = {
       const res = await client.get("/statusjson.cgi", {
         params: { query: "hostlist", formatoptions: "whitespace" },
       });
-      return res.data.result.data.hostlist as Record<string, HostStatus>;
+      return (res.data?.result?.data?.hostlist ?? {}) as Record<
+        string,
+        HostStatus
+      >;
     }, 1);
 
     getServices = rateLimit(async () => {
       const res = await client.get("/statusjson.cgi", {
         params: { query: "servicelist", formatoptions: "whitespace" },
       });
-      return res.data.result.data.servicelist as Record<
+      return (res.data?.result?.data?.servicelist ?? {}) as Record<
         string,
         Record<string, ServiceStatus>
       >;
