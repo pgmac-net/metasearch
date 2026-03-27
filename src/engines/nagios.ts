@@ -64,20 +64,30 @@ const engine: Engine = {
     });
 
     getHosts = rateLimit(async () => {
-      const res = await client.get("/statusjson.cgi", {
-        params: { query: "hostlist", details: true, formatoptions: "whitespace" },
-      });
-      return (res.data?.data?.hostlist ?? {}) as Record<string, HostStatus>;
+      try {
+        const res = await client.get("/statusjson.cgi", {
+          params: { query: "hostlist", details: true, formatoptions: "whitespace" },
+        });
+        return (res.data?.data?.hostlist ?? {}) as Record<string, HostStatus>;
+      } catch (e) {
+        console.error("Nagios: failed to fetch host list", e);
+        return {};
+      }
     }, 1);
 
     getServices = rateLimit(async () => {
-      const res = await client.get("/statusjson.cgi", {
-        params: { query: "servicelist", details: true, formatoptions: "whitespace" },
-      });
-      return (res.data?.data?.servicelist ?? {}) as Record<
-        string,
-        Record<string, ServiceStatus>
-      >;
+      try {
+        const res = await client.get("/statusjson.cgi", {
+          params: { query: "servicelist", details: true, formatoptions: "whitespace" },
+        });
+        return (res.data?.data?.servicelist ?? {}) as Record<
+          string,
+          Record<string, ServiceStatus>
+        >;
+      } catch (e) {
+        console.error("Nagios: failed to fetch service list", e);
+        return {};
+      }
     }, 1);
   },
   name: "Nagios",
