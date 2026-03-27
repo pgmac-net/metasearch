@@ -2,7 +2,7 @@ import axios from "axios";
 
 import { fuzzyIncludes, rateLimit } from "../util";
 
-// Bitmask values from statusjson.cgi with details=true
+// Status bitmask values from statusjson.cgi
 const HOST_STATE_LABELS: Record<number, string> = {
   1: "PENDING",
   2: "UP",
@@ -25,17 +25,12 @@ interface HostStatus {
   status: number;     // bitmask
 }
 
-interface ServiceStatus {
-  plugin_output: string;
-  last_check: number; // milliseconds
-  status: number;     // bitmask
-}
-
 let baseUrl: string;
 let graphsPath: string | undefined;
 let getHosts: (() => Promise<Record<string, HostStatus>>) | undefined;
+// servicelist (without details) returns { hostname: { servicename: bitmask } }
 let getServices:
-  | (() => Promise<Record<string, Record<string, ServiceStatus>>>)
+  | (() => Promise<Record<string, Record<string, number>>>)
   | undefined;
 
 const engine: Engine = {
@@ -78,11 +73,11 @@ const engine: Engine = {
     getServices = rateLimit(async () => {
       try {
         const res = await client.get("/statusjson.cgi", {
-          params: { query: "servicelist", details: true, formatoptions: "whitespace" },
+          params: { query: "servicelist", formatoptions: "whitespace" },
         });
         return (res.data?.data?.servicelist ?? {}) as Record<
           string,
-          Record<string, ServiceStatus>
+          Record<string, number>
         >;
       } catch (e) {
         console.error("Nagios: failed to fetch service list", e);
@@ -111,13 +106,11 @@ const engine: Engine = {
     }
 
     for (const [hostname, serviceMap] of Object.entries(services)) {
-      for (const [serviceName, status] of Object.entries(serviceMap)) {
+      for (const [serviceName, statusBitmask] of Object.entries(serviceMap)) {
         if (!fuzzyIncludes(hostname, q) && !fuzzyIncludes(serviceName, q))
           continue;
-        const state = SERVICE_STATE_LABELS[status.status] ?? `STATE(${status.status})`;
+        const state = SERVICE_STATE_LABELS[statusBitmask] ?? `STATE(${statusBitmask})`;
         results.push({
-          modified: status.last_check ? Math.round(status.last_check / 1000) : undefined,
-          snippet: status.plugin_output || undefined,
           title: `${hostname}: ${serviceName} [${state}]`,
           url: `${baseUrl}/nagios/cgi-bin/extinfo.cgi?type=2&host=${encodeURIComponent(hostname)}&service=${encodeURIComponent(serviceName)}`,
         });
