@@ -25,13 +25,13 @@ engines:
   # Nagios Core hosts and services (requires Nagios Core 4.x)
   nagios:
     # Nagios server hostname (and optional port)
-    host: status.int.pgmac.net:8000
+    host: status.int.pgmac.net:8080
     # Protocol: http or https (optional, defaults to https)
     protocol: http
     # Nagios web UI username
     username: nagiosadmin
     # Nagios web UI password
-    password: admin
+    password: nagios
     # Base path of Nagios web UI (optional, defaults to /nagios)
     # path: /nagios
     # Base path of PNP4Nagios for graph links (optional, omit to disable graph results)
