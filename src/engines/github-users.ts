@@ -1,7 +1,15 @@
 import axios, { AxiosInstance } from "axios";
-import * as marked from "marked";
 
 import { escapeQuotes, fuzzyIncludes, getUnixTime, rateLimit } from "../util";
+
+let markedParse: ((src: string) => string) | undefined;
+async function getMarkedParse(): Promise<(src: string) => string> {
+  if (!markedParse) {
+    const { marked } = await import("marked");
+    markedParse = (src: string) => marked.parse(src) as string;
+  }
+  return markedParse;
+}
 
 interface Repo {
   description: null | string;
@@ -209,11 +217,12 @@ const engine: Engine = {
             })
           ).data;
 
+          const parse = await getMarkedParse();
           results.push(
             ...data.items.map((item) => ({
               modified: getUnixTime(item.updated_at),
               snippet: item.body
-                ? `<blockquote>${marked.parse(item.body)}</blockquote>`
+                ? `<blockquote>${parse(item.body)}</blockquote>`
                 : undefined,
               title: `${item.pull_request ? "PR" : "Issue"} in ${
                 item.html_url.match(/github\.com\/([^\/]+\/[^\/]+)/)?.[1]
