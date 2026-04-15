@@ -20,33 +20,44 @@ const querify = (params: Record<string, string> = {}) =>
 
 const Header = ({
   onChange,
+  onOpenSidebar,
   onSearch,
   q,
 }: {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onOpenSidebar: () => void;
   onSearch: (q: string) => any;
   q: string;
 }) => (
-  <div className="header">
-    <form
-      onSubmit={e => {
-        onSearch(q);
-        e.preventDefault();
-      }}
+  <>
+    <button
+      aria-label="Open engine list"
+      className="hamburger"
+      onClick={onOpenSidebar}
     >
-      <input
-        autoFocus
-        className="search-box"
-        // For Firefox's "Add a Keyword for this Search..." feature
-        name="q"
-        onChange={onChange}
-        placeholder={"Search for anything!"}
-        type="text"
-        value={q}
-      />
-      <input className="submit" title="Search" type="submit" value="" />
-    </form>
-  </div>
+      ☰
+    </button>
+    <div className="header">
+      <form
+        onSubmit={e => {
+          onSearch(q);
+          e.preventDefault();
+        }}
+      >
+        <input
+          autoFocus
+          className="search-box"
+          // For Firefox's "Add a Keyword for this Search..." feature
+          name="q"
+          onChange={onChange}
+          placeholder={"Search for anything!"}
+          type="text"
+          value={q}
+        />
+        <input className="submit" title="Search" type="submit" value="" />
+      </form>
+    </div>
+  </>
 );
 
 type SortMode = "az" | "best" | "recent";
@@ -104,12 +115,15 @@ const Settings = ({
 
 const Sidebar = ({
   hiddenEngines,
+  onClose,
   resultGroups,
 }: {
   hiddenEngines: string[];
+  onClose: () => void;
   resultGroups: ResultGroup[];
 }) => (
   <div className="sidebar">
+    <button aria-label="Close engine list" className="sidebar-close" onClick={onClose}>✕</button>
     <ul>
       {Object.values(ENGINES)
         .sort((a, b) => (a.name > b.name ? 1 : -1))
@@ -363,6 +377,7 @@ const getUrlQ = () =>
 const App = () => {
   const [localData, setLocalData] = useState(STORAGE_MANAGER.get());
   const [q, setQ] = useState<string>("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [resultGroups, dispatch] = useReducer(
     (state: ResultGroup[], action: ResultGroup | undefined) =>
       action ? [...state, action] : [],
@@ -385,8 +400,9 @@ const App = () => {
   }, [localData]);
 
   const sortMode: SortMode = localData.sortMode || "best";
+  const closeSidebar = () => setSidebarOpen(false);
   return (
-    <div className={`theme${localData.dark ? " dark" : ""}`}>
+    <div className={`theme${localData.dark ? " dark" : ""}${sidebarOpen ? " sidebar-open" : ""}`}>
       <div
         className="logo"
         onClick={() => {
@@ -399,6 +415,7 @@ const App = () => {
       </div>
       <Header
         onChange={e => setQ(e.target.value)}
+        onOpenSidebar={() => setSidebarOpen(true)}
         onSearch={q => handleSearch(dispatch, q, !!getUrlQ().trim())}
         q={q}
       />
@@ -414,8 +431,18 @@ const App = () => {
         }
         sortMode={sortMode}
       />
+      <div className="mobile-settings">
+        <a href="javascript:;" onClick={() => setLocalData({ ...localData, newTab: !localData.newTab })}>
+          {localData.newTab ? "New tab: on" : "New tab: off"}
+        </a>
+        <a href="javascript:;" onClick={() => setLocalData({ ...localData, dark: !localData.dark })} title="Toggle dark theme">
+          <img src="/theme.png" style={{ height: "18px", verticalAlign: "middle" }} />
+        </a>
+      </div>
+      <div className="sidebar-backdrop" onClick={closeSidebar} />
       <Sidebar
         hiddenEngines={localData.hiddenEngines || []}
+        onClose={closeSidebar}
         resultGroups={resultGroups}
       />
       <Results
