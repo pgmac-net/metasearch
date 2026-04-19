@@ -47,36 +47,21 @@ jobs:
           echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "full-ref=macro.int.pgmac.net:5000/pg-metasearch:${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Build Docker image
-        env:
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          docker build \
-            -t "macro.int.pgmac.net:5000/pg-metasearch:${TAG}" \
-            .
+      - name: Set up Docker Buildx (remote BuildKit)
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: remote
+          endpoint: tcp://buildkitd.arc-runners.svc.cluster.local:1234
 
-      - name: Tag as latest
-        if: github.event_name == 'push'
-        env:
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          docker tag \
-            "macro.int.pgmac.net:5000/pg-metasearch:${TAG}" \
-            "macro.int.pgmac.net:5000/pg-metasearch:latest"
-
-      - name: Push Docker image
+      - name: Build and push Docker image
         id: push
-        if: github.event_name == 'push'
-        env:
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          docker push "macro.int.pgmac.net:5000/pg-metasearch:${TAG}"
-          docker push "macro.int.pgmac.net:5000/pg-metasearch:latest"
-          DIGEST=$(docker inspect \
-            --format='{{index .RepoDigests 0}}' \
-            "macro.int.pgmac.net:5000/pg-metasearch:${TAG}" \
-            | grep -oP 'sha256:[a-f0-9]+')
-          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            macro.int.pgmac.net:5000/pg-metasearch:${{ steps.tag.outputs.tag }}
+            macro.int.pgmac.net:5000/pg-metasearch:latest
 
       - name: Attest Docker image
         id: attest-image
