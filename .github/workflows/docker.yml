@@ -47,36 +47,31 @@ jobs:
           echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "full-ref=macro.int.pgmac.net:5000/pg-metasearch:${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Build Docker image
-        env:
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          docker build \
-            -t "macro.int.pgmac.net:5000/pg-metasearch:${TAG}" \
-            .
-
-      - name: Tag as latest
+      - name: Build and push Docker image
         if: github.event_name == 'push'
-        env:
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          docker tag \
-            "macro.int.pgmac.net:5000/pg-metasearch:${TAG}" \
-            "macro.int.pgmac.net:5000/pg-metasearch:latest"
+        uses: docker://gcr.io/kaniko-project/executor:v1.23.2-debug
+        with:
+          args: >-
+            --context=/github/workspace
+            --dockerfile=/github/workspace/Dockerfile
+            --destination=macro.int.pgmac.net:5000/pg-metasearch:${{ steps.tag.outputs.tag }}
+            --destination=macro.int.pgmac.net:5000/pg-metasearch:latest
+            --skip-tls-verify
+            --digest-file=/github/workspace/kaniko-digest.txt
 
-      - name: Push Docker image
+      - name: Build Docker image (PR, no push)
+        if: github.event_name == 'pull_request'
+        uses: docker://gcr.io/kaniko-project/executor:v1.23.2-debug
+        with:
+          args: >-
+            --context=/github/workspace
+            --dockerfile=/github/workspace/Dockerfile
+            --no-push
+
+      - name: Capture image digest
         id: push
         if: github.event_name == 'push'
-        env:
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          docker push "macro.int.pgmac.net:5000/pg-metasearch:${TAG}"
-          docker push "macro.int.pgmac.net:5000/pg-metasearch:latest"
-          DIGEST=$(docker inspect \
-            --format='{{index .RepoDigests 0}}' \
-            "macro.int.pgmac.net:5000/pg-metasearch:${TAG}" \
-            | grep -oP 'sha256:[a-f0-9]+')
-          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+        run: echo "digest=$(cat /github/workspace/kaniko-digest.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Attest Docker image
         id: attest-image
