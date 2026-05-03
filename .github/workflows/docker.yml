@@ -26,7 +26,7 @@ jobs:
       full-image-ref: ${{ steps.tag.outputs.full-ref }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Compute image tag
         id: tag
@@ -163,7 +163,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Generate CycloneDX SBoM from Docker image
         uses: anchore/sbom-action@v0
