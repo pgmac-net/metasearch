@@ -15,37 +15,47 @@ let getPages: (() => Promise<Set<Page>>) | undefined;
 const engine: Engine = {
   id: "website",
   init: ({ sitemaps }: { sitemaps: string[] }) => {
+    const CONCURRENCY = 10;
+
+    const scrapeUrl = async ({
+      lastmod: [date] = [],
+      loc: [url],
+    }: {
+      lastmod?: string[];
+      loc: string[];
+    }): Promise<Page | undefined> => {
+      try {
+        const html: string = (await axios.get(url)).data;
+        return {
+          content: sanitizeHtml(html)
+            .replace(/<.+?>/g, " ")
+            .replace(/\s+/g, " ")
+            .toLowerCase(),
+          modified: date ? getUnixTime(date) : undefined,
+          // Sanitization unescapes XML entities
+          title: sanitizeHtml(
+            html.match(/<title>(.+?)<\/title>/)?.[1] || url,
+          ),
+          url,
+        };
+      } catch {
+        console.log(`Failed to scrape ${url}`);
+        return undefined;
+      }
+    };
+
     const getPage = async (sitemap: string) => {
       const xml: string = (await axios.get(sitemap)).data;
       const parsedXml: {
         urlset: { url: { lastmod?: string[]; loc: string[] }[] };
       } = await xml2js.parseStringPromise(xml);
-      return (
-        await Promise.all(
-          parsedXml.urlset.url.map<Promise<Page | undefined>>(
-            async ({ lastmod: [date] = [], loc: [url] }) => {
-              try {
-                const html: string = (await axios.get(url)).data;
-                return {
-                  content: sanitizeHtml(html)
-                    .replace(/<.+?>/g, " ")
-                    .replace(/\s+/g, " ")
-                    .toLowerCase(),
-                  modified: date ? getUnixTime(date) : undefined,
-                  // Sanitization unescapes XML entities
-                  title: sanitizeHtml(
-                    html.match(/<title>(.+?)<\/title>/)?.[1] || url,
-                  ),
-                  url,
-                };
-              } catch {
-                console.log(`Failed to scrape ${url}`);
-                return undefined;
-              }
-            },
-          ),
-        )
-      ).filter((p): p is Page => !!p);
+      const entries = parsedXml.urlset.url;
+      const results: (Page | undefined)[] = [];
+      for (let i = 0; i < entries.length; i += CONCURRENCY) {
+        const batch = await Promise.all(entries.slice(i, i + CONCURRENCY).map(scrapeUrl));
+        results.push(...batch);
+      }
+      return results.filter((p): p is Page => !!p);
     };
 
     getPages = rateLimit(
