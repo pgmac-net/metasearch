@@ -7,3 +7,4 @@
 !/dist/*.min.js
 /data/*
 /.worktrees/
+/config.yaml
