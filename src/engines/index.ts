@@ -12,8 +12,10 @@ import guru from "./guru";
 import hound from "./hound";
 import jenkins from "./jenkins";
 import jira from "./jira";
+import linear from "./linear";
 import lingo from "./lingo";
 import mattermost from "./mattermost";
+import nagios from "./nagios";
 import notion from "./notion";
 import outlookCalendar from "./outlookCalendar";
 import pagerduty from "./pagerduty";
@@ -41,8 +43,10 @@ const engines: Engine[] = [
   hound,
   jenkins,
   jira,
+  linear,
   lingo,
   mattermost,
+  nagios,
   notion,
   outlookCalendar,
   pagerduty,

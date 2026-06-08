@@ -1,7 +1,15 @@
 import axios, { AxiosInstance } from "axios";
-import marked from "marked";
 
 import { getUnixTime, rateLimit } from "../util";
+
+let markedParse: ((src: string) => string) | undefined;
+async function getMarkedParse(): Promise<(src: string) => string> {
+  if (!markedParse) {
+    const { marked } = await import("marked");
+    markedParse = (src: string) => marked.parse(src) as string;
+  }
+  return markedParse;
+}
 
 let client: AxiosInstance | undefined;
 
@@ -137,9 +145,10 @@ const engine: Engine = {
     return await Promise.all(
       data.order.map(async postId => {
         const post = data.posts[postId];
+        const parse = await getMarkedParse();
         return {
           modified: getUnixTime(post.update_at),
-          snippet: `<blockquote>${marked.parse(post.message)}</blockquote>`,
+          snippet: `<blockquote>${parse(post.message)}</blockquote>`,
           title: await getTitle(post.channel_id, post.user_id),
           url: `${ori}/${teamName}/pl/${post.id}`,
         };

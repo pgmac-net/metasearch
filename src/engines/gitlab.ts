@@ -1,7 +1,15 @@
 import axios, { AxiosInstance } from "axios";
-import marked from "marked";
 
 import { getUnixTime, trimLines } from "../util";
+
+let markedParse: ((src: string) => string) | undefined;
+async function getMarkedParse(): Promise<(src: string) => string> {
+  if (!markedParse) {
+    const { marked } = await import("marked");
+    markedParse = (src: string) => marked.parse(src) as string;
+  }
+  return markedParse;
+}
 
 let client: AxiosInstance | undefined;
 
@@ -38,9 +46,10 @@ const engine: Engine = {
       })
     ).data;
 
+    const parse = await getMarkedParse();
     return data.map(mr => ({
       modified: getUnixTime(mr.updated_at),
-      snippet: `<blockquote>${marked.parse(
+      snippet: `<blockquote>${parse(
         trimLines(mr.description, q),
       )}</blockquote>`,
       title: mr.title,

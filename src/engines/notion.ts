@@ -3,7 +3,7 @@ import axios, { AxiosInstance } from "axios";
 import { getUnixTime } from "../util";
 
 let axiosClient: AxiosInstance | undefined;
-let notionWorkspace: string;
+let notionWorkspace: string | undefined;
 
 type RichText = { plain_text: string } & Record<string, string>;
 interface Page {
@@ -18,7 +18,7 @@ interface Page {
 
 const engine: Engine = {
   id: "notion",
-  init: ({ token, workspace }: { token: string; workspace: string }) => {
+  init: ({ token, workspace }: { token: string; workspace?: string }) => {
     token = token;
     notionWorkspace = workspace;
     axiosClient = axios.create({
@@ -26,7 +26,7 @@ const engine: Engine = {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        "Notion-Version": "2021-05-13",
+        "Notion-Version": "2022-06-28",
       },
     });
   },
@@ -50,7 +50,7 @@ const engine: Engine = {
           return {
             modified: getUnixTime(result.last_edited_time),
             title: title.plain_text,
-            url: `notion://notion.so/${notionWorkspace}/${formatTitle(
+            url: `https://notion.so/${notionWorkspace ? `${notionWorkspace}/` : ""}${formatTitle(
               title.plain_text,
             )}-${formatId(result.id)}`,
           };

@@ -6,3 +6,4 @@
 /node_modules/
 !/dist/*.min.js
 /data/*
+/.worktrees/
