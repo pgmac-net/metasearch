@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from "axios";
-import * as marked from "marked";
+import marked from "marked";
 
 import { getUnixTime, rateLimit } from "../util";
 
@@ -27,7 +27,7 @@ interface User {
 let getChannels: (() => Promise<Channel[]>) | undefined;
 let getUsers: (() => Promise<User[]>) | undefined;
 
-let getTitle = async (channelId: string, userId: string): Promise<string> => {
+const getTitle = async (channelId: string, userId: string): Promise<string> => {
   if (!(getChannels && getUsers)) {
     throw Error("Engine not initialized");
   }
@@ -97,7 +97,7 @@ const engine: Engine = {
 
       while (true) {
         const data: User[] = (
-          await axiosClient.get(`/users`, { params: { page: page } })
+          await axiosClient.get(`/users`, { params: { page } })
         ).data;
 
         if (!data?.length) {
@@ -139,7 +139,7 @@ const engine: Engine = {
         const post = data.posts[postId];
         return {
           modified: getUnixTime(post.update_at),
-          snippet: `<blockquote>${marked(post.message)}</blockquote>`,
+          snippet: `<blockquote>${marked.parse(post.message)}</blockquote>`,
           title: await getTitle(post.channel_id, post.user_id),
           url: `${ori}/${teamName}/pl/${post.id}`,
         };

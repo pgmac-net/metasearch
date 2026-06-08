@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from "axios";
-import * as marked from "marked";
+import marked from "marked";
 
 import { escapeQuotes, fuzzyIncludes, getUnixTime, rateLimit } from "../util";
 
@@ -136,7 +136,7 @@ const engine: Engine = {
             ...data.items.map((item) => ({
               modified: getUnixTime(item.updated_at),
               snippet: item.body
-                ? `<blockquote>${marked(item.body)}</blockquote>`
+                ? `<blockquote>${marked.parse(item.body)}</blockquote>`
                 : undefined,
               title: `${item.pull_request ? "PR" : "Issue"} in ${
                 item.html_url.match(/github\.com\/([^\/]+\/[^\/]+)/)?.[1]

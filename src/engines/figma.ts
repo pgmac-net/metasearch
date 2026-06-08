@@ -74,7 +74,7 @@ const engine: Engine = {
       try {
         await client.get(f.thumbnail_url, { maxRedirects: 0 });
         throw Error("Thumbnail URL not found");
-      } catch (ex) {
+      } catch (ex: any) {
         // TODO: Use library-provided type guard in v0.20
         // https://github.com/axios/axios/pull/2949
         if (
@@ -151,18 +151,17 @@ const engine: Engine = {
     return (
       await Promise.all(
         MODEL_TYPES.map(async ({ getResult, urlFragment }) => {
-          const data: {
-            meta: { results: Parameters<typeof getResult>[0][] };
-          } = (
-            await client.get(`/api/search/${urlFragment}`, {
-              params: {
-                desc: false,
-                org_id: orgId,
-                query: q,
-                sort: "relevancy",
-              },
-            })
-          ).data;
+          const data: { meta: { results: Parameters<typeof getResult>[0][] } } =
+            (
+              await client.get(`/api/search/${urlFragment}`, {
+                params: {
+                  desc: false,
+                  org_id: orgId,
+                  query: q,
+                  sort: "relevancy",
+                },
+              })
+            ).data;
           return Promise.all(data.meta.results.map(el => getResult(el)));
         }),
       )
