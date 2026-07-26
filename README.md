@@ -10,7 +10,7 @@ The full list of supported data sources:
 - [Confluence](https://www.atlassian.com/software/confluence) pages
 - [Dropbox](https://www.dropbox.com/) files and folders
 - [Figma](https://www.figma.com/) files, projects, and teams
-- [GitHub](https://github.com/) PRs, issues, and repo metadata
+- [GitHub](https://github.com/) PRs, issues, discussions, wiki pages, workflows, security advisories, and repo metadata
 - [GitLab](https://gitlab.com/) merge-requests
 - [Google Drive](https://www.google.com/drive/) docs, spreadsheets, etc.
 - [Google Groups](https://groups.google.com/) groups
