@@ -8,7 +8,7 @@ on:
 
 jobs:
   sbom:
-    uses: pgmac-net/pg-actions/.github/workflows/sbom.yml@218190ac9d3b18aa9f3225e910bf8c6801408abc # main
+    uses: pgmac-net/pg-actions/.github/workflows/sbom.yml@935d4b8bec17fd49d449914e406a7232d793aadd # main
     secrets: inherit
     permissions:
       attestations: write
