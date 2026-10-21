@@ -1,4 +1,7 @@
-import * as RGT from "aws-sdk/clients/resourcegroupstaggingapi";
+import {
+  GetResourcesCommand,
+  ResourceGroupsTaggingAPIClient,
+} from "@aws-sdk/client-resource-groups-tagging-api";
 
 import { fuzzyIncludes, rateLimit } from "../util";
 
@@ -153,13 +156,16 @@ const engine: Engine = {
       const start = Date.now();
       await Promise.all(
         regions.split(",").map(async region => {
-          const client = new RGT({ region });
+          const client = new ResourceGroupsTaggingAPIClient({ region });
           let token: string | undefined;
           do {
             const { PaginationToken, ResourceTagMappingList = [] } =
-              await client
-                .getResources({ PaginationToken: token, ResourcesPerPage: 100 })
-                .promise();
+              await client.send(
+                new GetResourcesCommand({
+                  PaginationToken: token,
+                  ResourcesPerPage: 100,
+                }),
+              );
             token = PaginationToken;
             resources.push(
               ...ResourceTagMappingList.map(r => {
@@ -179,7 +185,7 @@ const engine: Engine = {
                   snippet: [
                     `ARN = ${r.ResourceARN}`,
                     ...(r.Tags ?? [])
-                      .sort((a, b) => (a.Key > b.Key ? 1 : -1))
+                      .sort((a, b) => ((a.Key ?? "") > (b.Key ?? "") ? 1 : -1))
                       .map(r => `${r.Key} = ${r.Value}`),
                   ].join("<br>"),
                   title:
