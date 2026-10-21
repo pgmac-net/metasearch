@@ -28,9 +28,9 @@
     "uglify-js": "3.19.3"
   },
   "dependencies": {
+    "@aws-sdk/client-resource-groups-tagging-api": "3.1154.0",
     "@azure/msal-node": "3.7.4",
     "@microsoft/microsoft-graph-client": "3.0.7",
-    "aws-sdk": "2.1693.0",
     "axios": "1.20.0",
     "compression": "1.8.2",
     "date-fns": "4.1.0",
