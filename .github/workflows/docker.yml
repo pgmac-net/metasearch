@@ -18,6 +18,8 @@ permissions:
 
 jobs:
   build:
+    # self-hosted: builds via BuildKit over TCP to buildkitd.arc-runners.svc.cluster.local and
+    # pushes to macro.int.pgmac.net:5000, neither reachable outside the homelab. See pgmac-net/homelabia#176.
     runs-on: self-hosted
     timeout-minutes: 30
     outputs:
@@ -152,6 +154,8 @@ jobs:
           fi
 
   sbom:
+    # self-hosted: generates the SBOM from the built image in macro.int.pgmac.net:5000, so it must
+    # pull from the internal registry. See pgmac-net/homelabia#176.
     runs-on: self-hosted
     needs: [build]
     if: github.event_name == 'push'
