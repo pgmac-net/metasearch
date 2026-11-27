@@ -154,74 +154,22 @@ jobs:
           fi
 
   sbom:
-    # self-hosted: generates the SBOM from the built image in macro.int.pgmac.net:5000, so it must
-    # pull from the internal registry. See pgmac-net/homelabia#176.
-    runs-on: self-hosted
+    # Shared image SBoM (pg-actions#202): trivy CycloneDX by digest, uploaded to Dependency-Track as
+    # the image project macro.int.pgmac.net:5000/pg-metasearch / <tag>@<digest>, attested with the
+    # SBoM (public repo). Release builds only: master builds are never deployed, and a project
+    # version per merge would bury the released versions.
     needs: [build]
-    if: github.event_name == 'push'
-    timeout-minutes: 15
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    uses: pgmac-net/pg-actions/.github/workflows/image-sbom.yml@8d3f236e838c0d645c3c21e79e912f862283f853 # main
+    with:
+      image: macro.int.pgmac.net:5000/pg-metasearch
+      digest: ${{ needs.build.outputs.image-digest }}
+      tag: ${{ needs.build.outputs.image-tag }}
+      insecure-registry: true
     permissions:
       id-token: write
       attestations: write
-      actions: read
       contents: read
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Generate CycloneDX SBoM from Docker image
-        uses: anchore/sbom-action@v0
-        with:
-          image: ${{ needs.build.outputs.full-image-ref }}
-          format: cyclonedx-json
-          output-file: docker-sbom.json
-          artifact-name: docker-sbom.json
-          upload-artifact: true
-
-      - name: Compute SHA256 digest of SBoM
-        id: sha256
-        run: |
-          echo "digest=sha256:$(sha256sum docker-sbom.json | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-
-      - name: Attest SBoM
-        id: attest-sbom
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-name: docker-sbom.json
-          subject-digest: ${{ steps.sha256.outputs.digest }}
-          push-to-registry: false
-
-      - name: Upload SBoM attestation bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-sbom-attestation.json
-          path: ${{ steps.attest-sbom.outputs.bundle-path }}
-
-      - name: Upload SBoM to Dependency Track
-        uses: DependencyTrack/gh-upload-sbom@v3
-        with:
-          serverhostname: dtrack.int.pgmac.net
-          apikey: ${{ secrets.DT_APIKEY }}
-          projectname: ${{ github.repository }}
-          projectversion: ${{ needs.build.outputs.image-tag }}
-          projecttags: ${{ github.repository }}, docker, ${{ github.ref }}
-          bomfilename: docker-sbom.json
-          autocreate: true
-
-      - name: Append SBoM summary to workflow summary
-        env:
-          FULL_IMAGE_REF: ${{ needs.build.outputs.full-image-ref }}
-        run: |
-          COMPONENT_COUNT=$(jq '.components | length' docker-sbom.json 2>/dev/null || echo "unknown")
-          {
-            echo ""
-            echo "## SBoM Summary"
-            echo ""
-            echo "| Field | Value |"
-            echo "|---|---|"
-            echo "| Format | CycloneDX JSON |"
-            echo "| Components | \`${COMPONENT_COUNT}\` |"
-            echo "| Image | \`${FULL_IMAGE_REF}\` |"
-            echo "| Dependency Track | https://dtrack.int.pgmac.net |"
-            echo "| Attestation | Attested |"
-          } >> "$GITHUB_STEP_SUMMARY"
+    secrets:
+      DT_HOST: ${{ secrets.DT_HOST }}
+      DT_APIKEY: ${{ secrets.DT_APIKEY }}
